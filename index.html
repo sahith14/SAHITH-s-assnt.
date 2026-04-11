@@ -234,29 +234,28 @@ Stay in character as Stark's assistant.`;
       }
 
       async function getAIReply(input) {
-        try {
-          const response = await fetch('http://localhost:8000/chat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              message: input
-            })
-          });
+          try {
+              const response = await fetch('http://localhost:8000/chat', {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ message: input })
+              });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Backend error (${response.status}): ${errorText}`);
-          }
+              if (!response.ok) {
+                  const errorText = await response.text();
+                  throw new Error(`Backend error (${response.status}): ${errorText}`);
+              }
 
-          const data = await response.json();
-          return data.reply || "No response from server.";
+              const data = await response.json();
+              return data.reply || "No response from server.";
 
-        } catch (err) {
-          return `Neural uplink failed, boss. ${err.message}`;
-        }
-      }
+          } catch (err) {
+              console.error("Backend error:", err);
+              return `⚠️ Neural uplink failed, boss. Make sure the backend is running (python server.py). Error: ${err.message}`;
+          }  
+      }  
 
       async function handleCommand(text) {
         if (!text.trim()) return;

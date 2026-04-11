@@ -234,42 +234,28 @@ Stay in character as Stark's assistant.`;
       }
 
       async function getAIReply(input) {
-        const cfg = getConfig();
-        if (!cfg.apiKey) {
-          return `${await fallbackReply(input)}\n\n(Configure your OpenAI API key with the ⚙️ AI button to enable real AI responses.)`;
+        try {
+          const response = await fetch('http://localhost:8000/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              message: input
+            })
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Backend error (${response.status}): ${errorText}`);
+          }
+
+          const data = await response.json();
+          return data.reply || "No response from server.";
+
+        } catch (err) {
+          return `Neural uplink failed, boss. ${err.message}`;
         }
-
-        const now = new Date();
-        const contextualUserPrompt = [
-          `User message: ${input}`,
-          `Local datetime: ${now.toString()}`,
-          'Respond as F.R.I.D.A.Y.'
-        ].join('\n');
-
-        const response = await fetch('http://localhost:8000/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: input
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error("Backend failed");
-        }
-
-        const data = await response.json();
-        return data.reply;
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`AI uplink error (${response.status}): ${errorText.slice(0, 180)}`);
-        }
-
-        const data = await response.json();
-        return data.output_text?.trim() || 'I have partial telemetry, boss, but I did not receive a usable response payload.';
       }
 
       async function handleCommand(text) {

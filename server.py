@@ -3,11 +3,26 @@ Friday MCP Server — Entry Point
 Run with: python server.py
 """
 
+from fastapi import FastAPI
+from openai import OpenAI
+import os
 from mcp.server.fastmcp import FastMCP
 from friday.tools import register_all_tools
 from friday.prompts import register_all_prompts
 from friday.resources import register_all_resources
 from friday.config import config
+
+app = FastAPI()
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+@app.post("/chat")
+async def chat(req: dict):
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=req["message"]
+    )
+    return {"reply": response.output_text}
 
 # Create the MCP server instance
 mcp = FastMCP(

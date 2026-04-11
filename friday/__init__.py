@@ -1,1 +1,1 @@
-
+# Friday MCP Server Package

@@ -1,33 +1,30 @@
 """
-Friday MCP Server — Entry Point
+Friday Unified Server – FastAPI for frontend + MCP tools
 Run with: python server.py
 """
 
 from dotenv import load_dotenv
 load_dotenv()
-from fastapi.middleware.cors import CORSMiddleware
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from openai import OpenAI
 import os
-from mcp.server.fastmcp import FastMCP
+import json
+import asyncio
+from contextlib import asynccontextmanager
+
+# Import MCP components
 from friday.tools import register_all_tools
 from friday.prompts import register as register_all_prompts
 from friday.resources import register_all_resources
 from friday.config import config
 
-# Create the MCP server instance
-mcp = FastMCP(
-    name=config.SERVER_NAME,
-    instructions=(
-        "You are Friday, a Tony Stark-style AI assistant. "
-        "You have access to a set of tools to help the user. "
-        "Be concise, accurate, and a little witty."
-    ),
-)
+# Create FastAPI app
+app = FastAPI(title="Friday Assistant API")
 
-app = FastAPI()
-
-# Allow frontend to talk to backend (important or it will silently fail)
+# CORS – allows frontend to connect
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,28 +33,90 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Store MCP tools for later use
+mcp_tools = {}
+
+# Simple MCP tool registry (since FastMCP conflicts with FastAPI)
+def register_mcp_tool(name: str, func):
+    mcp_tools[name] = func
+
+# Import and register your tools manually
+from friday.tools.web import get_world_news, search_web, fetch_url, open_world_monitor
+from friday.tools.system import get_current_time, get_system_info
+from friday.tools.utils import format_json, word_count
+
+register_mcp_tool("get_world_news", get_world_news)
+register_mcp_tool("search_web", search_web)
+register_mcp_tool("fetch_url", fetch_url)
+register_mcp_tool("open_world_monitor", open_world_monitor)
+register_mcp_tool("get_current_time", get_current_time)
+register_mcp_tool("get_system_info", get_system_info)
+register_mcp_tool("format_json", format_json)
+register_mcp_tool("word_count", word_count)
+
+# System prompt for Friday
+SYSTEM_PROMPT = """You are F.R.I.D.A.Y. — Fully Responsive Intelligent Digital Assistant.
+You are calm, composed, and always informed. Speak like a trusted aide.
+
+Available tools (call them when appropriate):
+- get_world_news: Get latest global headlines
+- open_world_monitor: Open visual world dashboard
+- get_current_time: Get current date/time
+- get_system_info: Get system information
+
+Rules:
+1. Call tools silently without announcing them
+2. Keep responses short (2-4 sentences)
+3. Address user as "boss" occasionally
+4. No markdown, no lists – you are speaking"""
 
 @app.post("/chat")
 async def chat(req: dict):
     user_message = req.get("message", "")
+    
+    # First, check if user wants news
+    if any(word in user_message.lower() for word in ["news", "world", "happening", "brief me", "catch me up"]):
+        try:
+            news_result = await get_world_news()
+            # Call open_world_monitor automatically after news
+            await open_world_monitor()
+            return {"reply": f"Here's what's happening, boss:\n\n{news_result}\n\nI've opened the world monitor for you."}
+        except Exception as e:
+            return {"reply": f"News feed is unresponsive, boss. {str(e)}"}
+    
+    # Check for time request
+    if any(word in user_message.lower() for word in ["time", "clock", "what time"]):
+        time_result = get_current_time()
+        return {"reply": f"The current time is {time_result}, boss."}
+    
+    # Default: use OpenAI
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_message}
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        reply = response.choices[0].message.content
+        return {"reply": reply}
+    except Exception as e:
+        return {"reply": f"Neural uplink failed, boss. {str(e)}"}
 
-    response = client.responses.create(
-        model="gpt-4.1-mini",
-        input=user_message
-    )
-
-    return {
-        "reply": response.output_text
-    }
-
-# Register tools, prompts, and resources
-register_all_tools(mcp)
-register_all_prompts(mcp)
-register_all_resources(mcp)
+@app.get("/tools")
+async def list_tools():
+    """Return available MCP tools"""
+    return {"tools": list(mcp_tools.keys())}
 
 def main():
     import uvicorn
+    print("🚀 Friday server starting on http://localhost:8000")
+    print("📡 Available endpoints: POST /chat, GET /tools")
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
 
 if __name__ == "__main__":

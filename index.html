@@ -3,55 +3,257 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Friday Assistant</title>
+    <title>Friday Assistant Console</title>
     <style>
       :root {
-        color-scheme: light dark;
+        --bg: #070f2b;
+        --panel: #0b173d;
+        --border: #2b4b85;
+        --text: #e5eeff;
+        --muted: #99b7e8;
+        --accent: #66b3ff;
+        --accent-2: #9b7bff;
       }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
         min-height: 100vh;
+        font-family: Inter, Segoe UI, system-ui, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(1200px 600px at 10% -10%, #12306f66, transparent),
+          radial-gradient(900px 500px at 90% 0%, #431f7d55, transparent),
+          var(--bg);
         display: grid;
         place-items: center;
-        background: #0f172a;
-        color: #e2e8f0;
+        padding: 24px;
       }
-      .card {
-        max-width: 720px;
-        margin: 1rem;
-        padding: 2rem;
-        border-radius: 16px;
-        background: rgba(15, 23, 42, 0.9);
-        border: 1px solid #334155;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      .console {
+        width: min(980px, 100%);
+        min-height: 78vh;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #0a1538 0%, #08122f 100%);
+        box-shadow: 0 18px 60px #00000066;
+        display: grid;
+        grid-template-rows: auto 1fr auto auto;
+        overflow: hidden;
       }
-      h1 {
-        margin-top: 0;
-        color: #93c5fd;
+      .header {
+        padding: 18px 22px;
+        border-bottom: 1px solid #1f3566;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
-      code {
-        background: #1e293b;
-        padding: 0.2rem 0.4rem;
-        border-radius: 6px;
+      .title { font-size: 1.4rem; font-weight: 700; letter-spacing: .3px; }
+      .subtitle { color: var(--muted); font-size: .9rem; }
+      .status {
+        color: #8de8ba;
+        font-size: .85rem;
+        border: 1px solid #2b7e5a;
+        border-radius: 999px;
+        padding: 6px 10px;
       }
-      a {
-        color: #38bdf8;
+      .chat {
+        padding: 18px;
+        overflow: auto;
+        display: grid;
+        gap: 12px;
+      }
+      .msg {
+        max-width: 88%;
+        padding: 12px 14px;
+        border-radius: 14px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+      .msg.user {
+        margin-left: auto;
+        background: linear-gradient(120deg, #2668d1, #4a6bdb);
+      }
+      .msg.friday {
+        margin-right: auto;
+        border: 1px solid #2d4d8e;
+        background: #101f4f;
+      }
+      .quick {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 12px 18px;
+        border-top: 1px solid #1f3566;
+      }
+      .quick button,
+      .controls button {
+        background: #102251;
+        color: #cfe2ff;
+        border: 1px solid #365c9b;
+        border-radius: 10px;
+        padding: 8px 11px;
+        cursor: pointer;
+      }
+      .quick button:hover,
+      .controls button:hover { border-color: #6aa3ff; }
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 8px;
+        padding: 14px 18px 18px;
+      }
+      input {
+        width: 100%;
+        background: #0a173b;
+        color: var(--text);
+        border: 1px solid #365c9b;
+        border-radius: 10px;
+        padding: 12px;
+      }
+      @media (max-width: 640px) {
+        .controls { grid-template-columns: 1fr; }
+        .msg { max-width: 100%; }
       }
     </style>
   </head>
   <body>
-    <main class="card">
-      <h1>Friday MCP Assistant</h1>
-      <p>This GitHub Pages site is now configured with a root <code>index.html</code>, so it won't return a 404 on load.</p>
-      <p>This repository's main functionality is a Python MCP server, not a static frontend app.</p>
-      <p>
-        To run the backend locally:
-        <code>python server.py</code>
-      </p>
-      <p>
-        Repository: <a href="https://github.com/sahith14/SAHITH-s-assnt">github.com/sahith14/SAHITH-s-assnt</a>
-      </p>
+    <main class="console">
+      <header class="header">
+        <div>
+          <div class="title">F.R.I.D.A.Y. Console</div>
+          <div class="subtitle">Tony-style assistant demo running on GitHub Pages</div>
+        </div>
+        <div id="status" class="status">ONLINE</div>
+      </header>
+
+      <section id="chat" class="chat" aria-live="polite"></section>
+
+      <section class="quick">
+        <button data-q="System check">System check</button>
+        <button data-q="What time is it?">Current time</button>
+        <button data-q="What's the weather?">Weather</button>
+        <button data-q="Give me a mission brief">Mission brief</button>
+      </section>
+
+      <form id="form" class="controls">
+        <input id="prompt" autocomplete="off" placeholder="Talk to Friday... (e.g., 'status report')" />
+        <button type="button" id="micBtn">🎙️ Voice</button>
+        <button type="submit">Send</button>
+      </form>
     </main>
+
+    <script>
+      const chat = document.getElementById('chat');
+      const form = document.getElementById('form');
+      const promptInput = document.getElementById('prompt');
+      const micBtn = document.getElementById('micBtn');
+      const statusEl = document.getElementById('status');
+
+      const synth = window.speechSynthesis;
+
+      function addMessage(role, text) {
+        const el = document.createElement('div');
+        el.className = `msg ${role}`;
+        el.textContent = text;
+        chat.appendChild(el);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      function speak(text) {
+        if (!synth) return;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate = 1.03;
+        utter.pitch = 1.0;
+        synth.cancel();
+        synth.speak(utter);
+      }
+
+      async function getWeather() {
+        if (!navigator.geolocation) return 'Weather systems unavailable: geolocation is not supported.';
+
+        return new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+              const { latitude, longitude } = pos.coords;
+              const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`;
+              const res = await fetch(url);
+              const data = await res.json();
+              const temp = data?.current?.temperature_2m;
+              resolve(`Current outside temperature is ${temp}°F. Recommend mission-appropriate attire.`);
+            } catch {
+              resolve('Weather uplink failed. Try again in a moment.');
+            }
+          }, () => resolve('Location permission denied, cannot fetch live weather.'));
+        });
+      }
+
+      async function fridayReply(input) {
+        const text = input.toLowerCase();
+
+        if (text.includes('time')) {
+          const now = new Date();
+          return `Local time is ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+        }
+        if (text.includes('date')) {
+          return `Today's date is ${new Date().toLocaleDateString()}.`;
+        }
+        if (text.includes('weather')) {
+          return await getWeather();
+        }
+        if (text.includes('system check') || text.includes('status')) {
+          return 'All core systems are operational. MCP server code present. GitHub Pages interface online.';
+        }
+        if (text.includes('mission brief')) {
+          return 'Mission brief: stabilize deployment, connect live backend endpoint, and integrate secure LLM API relay. Ready when you are.';
+        }
+
+        const responses = [
+          'Understood. I am monitoring all channels.',
+          'Acknowledged. Would you like a tactical breakdown?',
+          'Working on it. I can also run diagnostics if needed.',
+          'Copy that. I am standing by for the next command.'
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+
+      async function handleCommand(text) {
+        if (!text.trim()) return;
+        addMessage('user', text);
+        promptInput.value = '';
+
+        statusEl.textContent = 'THINKING';
+        const reply = await fridayReply(text);
+        statusEl.textContent = 'ONLINE';
+
+        addMessage('friday', reply);
+        speak(reply);
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleCommand(promptInput.value);
+      });
+
+      document.querySelectorAll('.quick button').forEach((b) => {
+        b.addEventListener('click', () => handleCommand(b.dataset.q));
+      });
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition();
+        rec.lang = 'en-US';
+        rec.onresult = (e) => {
+          const text = e.results[0][0].transcript;
+          handleCommand(text);
+        };
+        rec.onstart = () => (statusEl.textContent = 'LISTENING');
+        rec.onend = () => (statusEl.textContent = 'ONLINE');
+        micBtn.addEventListener('click', () => rec.start());
+      } else {
+        micBtn.disabled = true;
+        micBtn.textContent = 'Voice N/A';
+      }
+
+      addMessage('friday', 'Good evening. F.R.I.D.A.Y. online. How can I assist you today?');
+    </script>
   </body>
 </html>

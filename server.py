@@ -31,7 +31,7 @@ app.add_middleware(
 )
 
 # Initialize OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.getenv("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"))
 
 # Import tools from your actual files
 from friday.tools.web import get_world_news, search_web, fetch_url, open_world_monitor

@@ -3,6 +3,8 @@ Friday MCP Server — Entry Point
 Run with: python server.py
 """
 
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from openai import OpenAI

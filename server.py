@@ -11,7 +11,7 @@ from openai import OpenAI
 import os
 from mcp.server.fastmcp import FastMCP
 from friday.tools import register_all_tools
-from friday.prompts import register_all_prompts
+from friday.prompts import register as register_all_prompts
 from friday.resources import register_all_resources
 from friday.config import config
 

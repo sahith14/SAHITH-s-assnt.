@@ -8,7 +8,7 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from openai import OpenAI
+from groq import Groq
 import os
 import asyncio
 
@@ -30,8 +30,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize OpenAI
-client = OpenAI(api_key=os.getenv("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"))
+# Initialize Groq (FREE - get key from https://console.groq.com/keys)
+GROQ_API_KEY = os.getenv("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")
+if not GROQ_API_KEY:
+    print("⚠️ WARNING: GROQ_API_KEY not found in .env file")
+    print("💡 Get your free key from: https://console.groq.com/keys")
+    
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # Import tools from your actual files
 from friday.tools.web import get_world_news, search_web, fetch_url, open_world_monitor
@@ -73,21 +78,24 @@ async def chat(req: dict):
         time_result = get_current_time()
         return {"reply": f"The current time is {time_result}, boss."}
     
-    # Default: use OpenAI
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_message}
-            ],
-            max_tokens=150,
-            temperature=0.7
-        )
-        reply = response.choices[0].message.content
-        return {"reply": reply}
-    except Exception as e:
-        return {"reply": f"Neural uplink failed, boss. {str(e)}"}
+    # Default: use Groq (FREE)
+    if client:
+        try:
+            response = client.chat.completions.create(
+                model="llama3-8b-8192",  # Free model, very fast
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_message}
+                ],
+                max_tokens=150,
+                temperature=0.7
+            )
+            reply = response.choices[0].message.content
+            return {"reply": reply}
+        except Exception as e:
+            return {"reply": f"Neural uplink failed, boss. {str(e)}"}
+    else:
+        return {"reply": "⚠️ Groq API key not configured. Add GROQ_API_KEY to .env file. Get free key from: https://console.groq.com/keys"}
 
 @app.get("/tools")
 async def list_tools():
@@ -96,8 +104,17 @@ async def list_tools():
 
 def main():
     import uvicorn
-    print("🚀 Friday server starting on http://localhost:8000")
-    print("📡 Available endpoints: POST /chat, GET /tools")
+    print("=" * 50)
+    print("🚀 FRIDAY SERVER STARTING (Groq AI)")
+    print("=" * 50)
+    print("📡 Server: http://localhost:8000")
+    print("📡 Endpoints: POST /chat, GET /tools")
+    if client:
+        print("🤖 AI Mode: ENABLED (Groq - Free & Fast)")
+    else:
+        print("⚠️ AI Mode: DISABLED (Missing GROQ_API_KEY)")
+        print("💡 Get free key: https://console.groq.com/keys")
+    print("=" * 50)
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
 
 if __name__ == "__main__":
